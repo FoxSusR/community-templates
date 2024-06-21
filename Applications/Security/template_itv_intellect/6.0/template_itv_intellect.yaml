@@ -1,0 +1,59 @@
+zabbix_export:
+  version: '6.0'
+  date: '2024-06-21T06:43:28Z'
+  groups:
+    - uuid: ce3ed4aa2751471ca10dd4e84e2d7ba4
+      name: CCTV
+  templates:
+    - uuid: e6a455dcd78d4868b7fb7d8b89555620
+      template: 'ITV Intellect'
+      name: 'ITV Intellect'
+      groups:
+        - name: CCTV
+      discovery_rules:
+        - uuid: 3a09a013a3b9464f88f54a2e42dc513b
+          name: 'Cameras discovery'
+          type: HTTP_AGENT
+          key: videoserver.camera.discovery
+          authtype: BASIC
+          username: '{$API_USER}'
+          password: '{$API_PASS}'
+          filter:
+            conditions:
+              - macro: '{#TYPE}'
+                value: CAM
+                formulaid: A
+          item_prototypes:
+            - uuid: 8634dcf4801348129bb501f8b928f02d
+              name: 'Videoserver Camera {#CAMERA}'
+              type: HTTP_AGENT
+              key: 'videoserver.camera.state.[{#CAMERA}]'
+              trends: '0'
+              value_type: TEXT
+              authtype: BASIC
+              username: '{$API_USER}'
+              password: '{$API_PASS}'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - $.state.id
+              url: 'http://@{HOST.IP}:8085/web2/secure/configuration/{#CAMERA}/'
+              trigger_prototypes:
+                - uuid: 8633855985be4cd4927bb56fffcfabe8
+                  expression: 'find(/ITV Intellect/videoserver.camera.state.[{#CAMERA}],3m,,"disconnected")=1'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'find(/ITV Intellect/videoserver.camera.state.[{#CAMERA}],3m,,"disconnected")=0'
+                  name: '{#CAMERA} is not working'
+                  priority: AVERAGE
+          timeout: 10s
+          url: 'http://{HOST.IP}:8085/web2/secure/configuration/'
+          lld_macro_paths:
+            - lld_macro: '{#CAMERA}'
+              path: $.id
+            - lld_macro: '{#TYPE}'
+              path: $.type
+      macros:
+        - macro: '{$API_PASS}'
+          value: API_PASS
+        - macro: '{$API_USER}'
+          value: API_USER
